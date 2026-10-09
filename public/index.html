@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4f0e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)">
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("folio-theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>Folio — a personal reading library</title>
+  <meta name="description" content="A small personal reading library.">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="folio" class="folio">
+    <noscript>
+      <div class="page state">
+        <h1 class="state__title">Folio needs JavaScript</h1>
+        <p class="state__text">Turn on JavaScript to browse and edit your reading library.</p>
+      </div>
+    </noscript>
+  </div>
+</body>
+</html>

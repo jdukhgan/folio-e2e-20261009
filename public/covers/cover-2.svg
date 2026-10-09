@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" preserveAspectRatio="xMidYMid slice">
+  <rect width="200" height="210" fill="#BCCFE0"/>
+  <defs>
+    <g id="t"><rect width="50" height="50" fill="#BCCFE0"/><path d="M0 0H50A50 50 0 0 1 0 50Z" fill="#2B44A8"/><circle cx="0" cy="0" r="18" fill="#BCCFE0"/><circle cx="0" cy="0" r="9" fill="#2B44A8"/></g>
+  </defs>
+  <use href="#t" x="0" y="0"/><use href="#t" transform="translate(100 0) rotate(90)"/><use href="#t" x="100" y="0"/><use href="#t" transform="translate(200 0) rotate(90)"/>
+  <use href="#t" transform="translate(50 100) rotate(180)"/><use href="#t" transform="translate(50 50) rotate(-90)"/><use href="#t" transform="translate(150 100) rotate(180)"/><use href="#t" transform="translate(150 50) rotate(-90)"/>
+  <use href="#t" x="0" y="100"/><use href="#t" transform="translate(100 100) rotate(90)"/><use href="#t" x="100" y="100"/><use href="#t" transform="translate(200 100) rotate(90)"/>
+  <use href="#t" transform="translate(50 200) rotate(180)"/><use href="#t" transform="translate(50 150) rotate(-90)"/><use href="#t" transform="translate(150 200) rotate(180)"/><use href="#t" transform="translate(150 150) rotate(-90)"/>
+  <rect y="200" width="200" height="10" fill="#2B44A8"/>
+  <circle cx="138" cy="70" r="26" fill="#D8452B"/><circle cx="138" cy="70" r="26" fill="none" stroke="#BCCFE0" stroke-width="4"/>
+</svg>

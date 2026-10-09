@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" preserveAspectRatio="xMidYMid slice">
+  <rect width="200" height="210" fill="#EFD9C8"/>
+  <defs><clipPath id="a"><path d="M0 0H200V210H0Z"/></clipPath></defs>
+  <g clip-path="url(#a)" stroke="#1F1C1A" stroke-width="1.4">
+    <path d="M-60 30L60 -90M-60 46L76 -90M-60 62L92 -90M-60 78L108 -90M-60 94L124 -90M-60 110L140 -90M-60 126L156 -90M-60 142L172 -90M-60 158L188 -90M-60 174L204 -90M-60 190L220 -90M-60 206L236 -90M-60 222L252 -90M-60 238L268 -90M-60 254L284 -90M-60 270L300 -90"/>
+  </g>
+  <path d="M0 210L200 54" stroke="#EFD9C8" stroke-width="16"/>
+  <path d="M0 196L200 40" stroke="#D8452B" stroke-width="3"/>
+</svg>

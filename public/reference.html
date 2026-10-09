@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4f0e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)">
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("folio-theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>Folio — component reference (fixtures)</title>
+  <meta name="robots" content="noindex">
+  <style>
+    /* Reference-only fixture controls; not part of the product UI. */
+    .fixture-panel { position: fixed; right: .75rem; bottom: .75rem; z-index: 30; max-width: calc(100vw - 1.5rem);
+      font: 500 .8125rem/1.3 var(--font-sans); background: var(--paper-raised); color: var(--ink);
+      border: 1px dashed var(--rule-strong); border-radius: var(--radius); }
+    .fixture-panel summary { cursor: pointer; padding: .5rem .75rem; }
+    .fixture-panel div { display: flex; flex-wrap: wrap; gap: .375rem; padding: 0 .75rem .75rem; max-width: 26rem; }
+    .fixture-panel button { font: inherit; padding: .375rem .5rem; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--paper); cursor: pointer; }
+  </style>
+  <script type="module">
+    import { createLibraryView, initTheme } from './components.js';
+    import { createFixtureSource } from './fixtures.js';
+    initTheme();
+    const params = new URLSearchParams(location.search);
+    const source = createFixtureSource({ latency: Number(params.get('latency') ?? 450) });
+    if (params.has('empty')) source.controls.clear();
+    if (params.has('failload')) source.controls.failNext('list', 'network');
+    const view = createLibraryView(document.getElementById('folio'), source);
+    view.start();
+    window.folioReference = { view, source };
+    const actions = {
+      'save-network': () => { source.controls.failNext('update', 'network'); source.controls.failNext('create', 'network'); },
+      'save-server': () => { source.controls.failNext('update', 'server'); source.controls.failNext('create', 'server'); },
+      'save-422': () => { source.controls.failNext('update', 'validation'); source.controls.failNext('create', 'validation'); },
+      'delete-network': () => source.controls.failNext('remove', 'network'),
+      'stale-4': () => source.controls.removeQuietly(4),
+      'slow': () => { source.controls.latency = 2500; },
+      'fast': () => { source.controls.latency = 450; },
+      'list-fail': () => { source.controls.failNext('list', 'network'); view.refresh(); },
+      'empty': () => { source.controls.clear(); view.refresh(); },
+      'reset': () => { source.controls.reset(); view.refresh(); },
+    };
+    document.querySelector('.fixture-panel').addEventListener('click', (e) => {
+      const key = e.target.dataset?.fixture;
+      if (key) actions[key]();
+    });
+  </script>
+</head>
+<body>
+  <div id="folio" class="folio"></div>
+  <details class="fixture-panel">
+    <summary>Fixture controls</summary>
+    <div>
+      <button data-fixture="save-network">Next save: network</button>
+      <button data-fixture="save-server">Next save: 500</button>
+      <button data-fixture="save-422">Next save: 422</button>
+      <button data-fixture="delete-network">Next delete: network</button>
+      <button data-fixture="stale-4">Delete #4 elsewhere</button>
+      <button data-fixture="slow">Slow (2.5s)</button>
+      <button data-fixture="fast">Normal speed</button>
+      <button data-fixture="list-fail">Refresh fails</button>
+      <button data-fixture="empty">Empty library</button>
+      <button data-fixture="reset">Reset</button>
+    </div>
+  </details>
+</body>
+</html>

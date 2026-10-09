@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" preserveAspectRatio="xMidYMid slice">
+  <rect width="200" height="210" fill="#B8582F"/>
+  <path d="M20 210V120A80 80 0 0 1 180 120V210Z" fill="#2A2420"/>
+  <path d="M40 210V126A60 60 0 0 1 160 126V210Z" fill="#DDA33A"/>
+  <path d="M60 210V132A40 40 0 0 1 140 132V210Z" fill="#2A2420"/>
+  <path d="M80 210V140A20 20 0 0 1 120 140V210Z" fill="#F1EADC"/>
+  <g fill="#F1EADC" opacity=".85"><circle cx="100" cy="28" r="3"/><circle cx="88" cy="16" r="2"/><circle cx="112" cy="12" r="2.4"/></g>
+  <path d="M100 40v14" stroke="#F1EADC" stroke-width="1.2"/>
+</svg>
