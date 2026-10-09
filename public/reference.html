@@ -42,6 +42,8 @@
       'save-network': () => { source.controls.failNext('update', 'network'); source.controls.failNext('create', 'network'); },
       'save-server': () => { source.controls.failNext('update', 'server'); source.controls.failNext('create', 'server'); },
       'save-422': () => { source.controls.failNext('update', 'validation'); source.controls.failNext('create', 'validation'); },
+      'status-network': () => source.controls.failNext('update', 'network'),
+      'status-server': () => source.controls.failNext('update', 'server'),
       'delete-network': () => source.controls.failNext('remove', 'network'),
       'stale-4': () => source.controls.removeQuietly(4),
       'slow': () => { source.controls.latency = 2500; },
@@ -64,6 +66,8 @@
       <button data-fixture="save-network">Next save: network</button>
       <button data-fixture="save-server">Next save: 500</button>
       <button data-fixture="save-422">Next save: 422</button>
+      <button data-fixture="status-network">Next status change: network</button>
+      <button data-fixture="status-server">Next status change: 500</button>
       <button data-fixture="delete-network">Next delete: network</button>
       <button data-fixture="stale-4">Delete #4 elsewhere</button>
       <button data-fixture="slow">Slow (2.5s)</button>

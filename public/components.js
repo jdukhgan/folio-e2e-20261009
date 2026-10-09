@@ -7,7 +7,7 @@
 //   const view = createLibraryView(document.getElementById('folio'), source);
 //   view.start();
 //
-// `source` implements contract v1 and returns promises:
+// `source` implements shared contract v2 and returns promises:
 //   list({ q, status })   -> Book[]      status is '' (all) or a status value
 //   create(draft)         -> Book        draft = { title, author, status, notes }
 //   update(id, draft)     -> Book
@@ -104,6 +104,12 @@ const SAVE_COPY = {
   network: ['Couldn’t reach your library', 'Folio didn’t get a response. Check that it is still running, then try again — your changes are kept here.'],
   server: ['Couldn’t save your changes', 'Something went wrong on Folio’s side. Your changes are kept here; try again in a moment.'],
   invalid: ['Couldn’t save your changes', 'The library didn’t understand that request. Your changes are kept here; try again.'],
+};
+const STATUS_COPY = {
+  network: 'Folio couldn’t reach your library, so the status is unchanged. Check that it is still running, then try again.',
+  server: 'Something went wrong on Folio’s side, so the status is unchanged. Try again in a moment.',
+  invalid: 'The library didn’t understand that request, so the status is unchanged. Try again.',
+  validation: 'The library didn’t accept this book’s details, so the status is unchanged. Use Edit book to check them.',
 };
 const DELETE_COPY = {
   network: 'Folio couldn’t reach your library, so nothing was deleted. Check that it is still running and try again.',
@@ -314,6 +320,7 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     order: [],
     pending: false,
     confirming: false,
+    missing: false, // the open book was deleted elsewhere
   };
   const drafts = new Map(); // 'new' | book id -> unsaved draft
 
@@ -344,31 +351,31 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
   const addButton = el('button', { type: 'button', class: 'button button--primary', 'data-action': 'add' });
   addButton.innerHTML = `${icon('plus')}<span>Add <span class="add-label-long">a </span>book</span>`;
 
-  const library = el('main', { class: 'library', id: 'library', tabindex: '-1', 'aria-busy': 'true' });
+  const library = el('main', { class: 'library page', id: 'library', tabindex: '-1', 'aria-busy': 'true' });
   // A manual popover sits in the top layer, so toasts stay visible above the modal sheet.
   const toastRegion = el('div', { class: 'toast-region', role: 'status', 'aria-live': 'polite', popover: 'manual' });
+  // Search/filter results are announced here, only for the response that is current.
+  const announcer = el('p', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true', 'data-role': 'results-announcer' });
   const dialog = el('dialog', { class: 'sheet', 'aria-labelledby': 'sheet-heading' });
 
   root.append(
     el('a', { class: 'skip-link', href: '#library', text: 'Skip to library' }),
-    el('header', { class: 'masthead page' }, [
-      el('div', { class: 'masthead__inner' }, [
-        el('h1', { class: 'wordmark' }, ['Folio', el('span', { class: 'wordmark__dot', text: '.' })]),
-        el('p', { class: 'masthead__tagline', text: 'A personal reading library' }),
+    el('header', { class: 'masthead' }, [
+      el('div', { class: 'masthead__inner page' }, [
+        el('h1', { class: 'wordmark', title: 'A personal reading library' }, ['Folio', el('span', { class: 'wordmark__dot', text: '.' })]),
+        el('div', { class: 'tools', role: 'search' }, [
+          el('div', { class: 'search' }, [
+            el('label', { class: 'visually-hidden', for: 'folio-search', text: 'Search titles and authors' }),
+            el('span', { html: icon('search') }),
+            searchInput,
+          ]),
+          el('fieldset', { class: 'filter' }, [el('legend', { class: 'visually-hidden', text: 'Show books by status' }), filterOptions]),
+        ]),
         el('div', { class: 'masthead__actions' }, [themeButton, addButton]),
       ]),
     ]),
-    el('div', { class: 'page' }, [
-      el('div', { class: 'tools', role: 'search' }, [
-        el('div', { class: 'search' }, [
-          el('label', { class: 'visually-hidden', for: 'folio-search', text: 'Search titles and authors' }),
-          el('span', { html: icon('search') }),
-          searchInput,
-        ]),
-        el('fieldset', { class: 'filter' }, [el('legend', { class: 'visually-hidden', text: 'Show books by status' }), filterOptions]),
-      ]),
-      library,
-    ]),
+    library,
+    announcer,
     toastRegion,
     dialog,
   );
@@ -393,12 +400,12 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     searchTimer = setTimeout(() => {
       if (searchInput.value === state.query) return;
       state.query = searchInput.value;
-      refresh();
+      refresh({ announce: true });
     }, 220);
   });
   filterOptions.addEventListener('change', (event) => {
     state.status = event.target.value;
-    refresh();
+    refresh({ announce: true });
   });
 
   library.addEventListener('click', (event) => {
@@ -414,29 +421,36 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
       clearTimeout(searchTimer);
       searchInput.value = '';
       state.query = '';
-      refresh().then(() => searchInput.focus());
+      refresh({ announce: true }).then(() => searchInput.focus());
     }
     if (action === 'show-all') {
       filterOptions.querySelector('#folio-filter-all').checked = true;
       state.status = '';
-      refresh();
+      refresh({ announce: true }).then(() => filterOptions.querySelector('#folio-filter-all').focus());
     }
     if (action === 'add-empty') openCreate({ kind: 'add' });
   });
 
   // ----- Loading the collection -----
 
-  async function refresh() {
+  /**
+   * Reload with the current query and filter. `announce` is set only by
+   * search/filter changes: the result summary is spoken once the response that
+   * is still current arrives; superseded responses never announce.
+   */
+  async function refresh({ announce = false } = {}) {
     const request = ++state.request;
     library.setAttribute('aria-busy', 'true');
     if (state.loaded) library.dataset.refreshing = '';
     else renderLibrary();
+    let ok = false;
     try {
       const books = await source.list({ q: state.query, status: state.status });
       if (request !== state.request) return false;
       state.books = Array.isArray(books) ? books : [];
       state.loaded = true;
       state.loadError = null;
+      ok = true;
       return true;
     } catch (err) {
       if (request !== state.request) return false;
@@ -447,14 +461,36 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
         library.setAttribute('aria-busy', 'false');
         delete library.dataset.refreshing;
         renderLibrary();
+        if (announce && ok) announceResults();
       }
     }
+  }
+
+  function resultSummary() {
+    const { books, status } = state;
+    const query = state.query.trim();
+    const marked = status ? ` marked ${STATUS_LABELS[status]}` : '';
+    if (!books.length) {
+      return query ? `No books${marked} match “${query}”.` : status ? `No books${marked}.` : 'The library is empty.';
+    }
+    return `${plural(books.length, 'book', 'books')}${marked}${query ? ` matching “${query}”` : ''}.`;
+  }
+
+  function announceResults() {
+    const text = resultSummary();
+    const request = state.request;
+    announcer.textContent = '';
+    // A fresh text node after a frame makes identical summaries speak again.
+    requestAnimationFrame(() => {
+      if (request === state.request) announcer.textContent = text;
+    });
   }
 
   function bookLink(book, className) {
     return el('button', { type: 'button', class: `book-link ${className}`, dataset: { bookId: String(book.id) }, text: book.title });
   }
 
+  /** A book being read: cover, title, author and its note excerpt (literal text). */
   function deskItem(book) {
     const note = book.notes.trim();
     return el('li', { class: 'desk-book' }, [
@@ -462,7 +498,9 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
       el('div', { class: 'desk-book__text' }, [
         el('h3', { class: 'desk-book__title' }, bookLink(book, '')),
         el('p', { class: 'desk-book__author', text: book.author }),
-        note ? el('p', { class: 'desk-book__note', text: note }) : null,
+        note
+          ? el('p', { class: 'desk-book__note', text: note })
+          : el('p', { class: 'desk-book__note desk-book__note--empty', text: 'No notes yet — open the book to add some.' }),
       ]),
     ]);
   }
@@ -540,6 +578,8 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
       children.push(...renderCollection());
     }
     library.replaceChildren(...children);
+    // Desk beside the shelf on wide screens; everything else is one column.
+    library.dataset.layout = library.querySelector(':scope > .desk--rail') && library.querySelector(':scope > .shelf-section') ? 'split' : 'single';
   }
 
   function renderCollection() {
@@ -575,6 +615,15 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
         ? `Results for “${query.trim()}”`
         : STATUS_LABELS[status];
       const meta = query.trim() && status ? `${plural(books.length, 'book', 'books')} · ${STATUS_LABELS[status]}` : plural(books.length, 'book', 'books');
+      // The Reading filter keeps each book's notes: it is the reading journal, not a thinner shelf.
+      if (status === 'reading') {
+        return [
+          el('section', { class: 'desk desk--journal', 'aria-labelledby': 'shelf-heading' }, [
+            sectionHead('shelf-heading', title, meta),
+            el('ol', { class: 'desk__list' }, books.map(deskItem)),
+          ]),
+        ];
+      }
       return [
         el('section', { class: 'shelf-section', 'aria-labelledby': 'shelf-heading' }, [
           sectionHead('shelf-heading', title, meta),
@@ -587,7 +636,7 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     const sections = [];
     if (reading.length) {
       sections.push(
-        el('section', { class: 'desk', 'aria-labelledby': 'desk-heading' }, [
+        el('section', { class: 'desk desk--rail', 'aria-labelledby': 'desk-heading' }, [
           sectionHead('desk-heading', 'On the desk', `${reading.length} in progress`),
           el('ol', { class: 'desk__list' }, reading.map(deskItem)),
         ]),
@@ -635,6 +684,7 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     sheet.order = bookLinks().map((link) => Number(link.dataset.bookId));
     sheet.pending = false;
     sheet.confirming = false;
+    sheet.missing = false;
     dialog.showModal();
     raiseToasts();
   }
@@ -790,11 +840,12 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     const deleteButton = lockedButton('Delete', 'danger-quiet', { iconName: 'trash' });
     const footer = el('div', { class: 'sheet__footer' }, [editButton, el('span', { class: 'spacer' }), deleteButton, pendingNote()]);
 
+    // Handlers read sheet.book: a status change replaces it while the sheet stays open.
     editButton.addEventListener('click', () => {
-      if (!isLocked(editButton)) showEditor('edit', book);
+      if (!isLocked(editButton)) showEditor('edit', sheet.book);
     });
     deleteButton.addEventListener('click', () => {
-      if (!isLocked(deleteButton)) showConfirm(book, footer);
+      if (!isLocked(deleteButton)) showConfirm(sheet.book, footer);
     });
 
     dialog.replaceChildren(
@@ -803,8 +854,9 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
         el('div', { class: 'sheet__body' }, [
           el('div', { class: 'detail__head' }, [
             renderCover(book),
-            el('div', { class: 'detail__meta' }, [heading, el('p', { class: 'detail__author', text: book.author }), statusTag(book.status)]),
+            el('div', { class: 'detail__meta' }, [heading, el('p', { class: 'detail__author', text: book.author })]),
           ]),
+          statusSwitch(book),
           el('section', { class: 'detail__notes', 'aria-labelledby': 'notes-label' }, [
             el('h3', { class: 'detail__label', id: 'notes-label', text: 'Notes' }),
             notes,
@@ -813,8 +865,115 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
         footer,
       ]),
     );
+    if (sheet.missing) lockMissing();
     if (focus === 'heading') heading.focus();
     else if (focus === 'delete') deleteButton.focus();
+  }
+
+  // ----- Sheet: direct status change -----
+
+  /**
+   * Three toggle buttons (aria-pressed), not radios: arrow keys never send a
+   * request. The pressed state always shows the committed status; the chosen
+   * option shows progress until the library confirms.
+   */
+  function statusSwitch(book) {
+    const group = el('div', { class: 'status-switch', role: 'group', 'aria-labelledby': 'status-switch-label' });
+    for (const option of STATUSES) {
+      const button = el(
+        'button',
+        {
+          type: 'button',
+          class: 'status-switch__option',
+          'data-lock': '',
+          'aria-disabled': 'false',
+          'aria-pressed': String(book.status === option.value),
+          dataset: { status: option.value, idleText: option.label, pendingText: option.label },
+        },
+        [el('span', { class: 'status-dot', 'aria-hidden': 'true' }), el('span', { 'data-label': '', text: option.label })],
+      );
+      button.addEventListener('click', () => {
+        if (sheet.pending) announcePending();
+        else if (!isLocked(button) && sheet.book.status !== option.value) changeStatus(option.value);
+      });
+      group.append(button);
+    }
+    return el('div', { class: 'detail__status' }, [
+      el('p', { class: 'detail__label', id: 'status-switch-label', text: 'Reading status' }),
+      group,
+      el('div', { class: 'alert', role: 'alert', tabindex: '-1', hidden: true, 'data-role': 'status-alert' }),
+    ]);
+  }
+
+  const statusButton = (status) => dialog.querySelector(`.status-switch__option[data-status="${status}"]`);
+
+  function showStatusAlert({ title, text, actions = [] }) {
+    const alert = dialog.querySelector('[data-role="status-alert"]');
+    alert.replaceChildren(
+      el('p', { class: 'alert__title', text: title }),
+      text ? el('p', { class: 'alert__text', text }) : null,
+      actions.length ? el('div', { class: 'alert__actions' }, actions) : null,
+    );
+    alert.hidden = false;
+    return alert;
+  }
+
+  function hideStatusAlert() {
+    const alert = dialog.querySelector('[data-role="status-alert"]');
+    if (!alert) return;
+    alert.hidden = true;
+    alert.replaceChildren();
+  }
+
+  /** The open book was deleted elsewhere: keep the page readable, lock every mutation. */
+  function lockMissing() {
+    for (const control of dialog.querySelectorAll('[data-lock]')) control.setAttribute('aria-disabled', 'true');
+  }
+
+  async function changeStatus(status) {
+    if (sheet.pending || sheet.mode !== 'view') return;
+    const book = sheet.book;
+    const label = STATUS_LABELS[status];
+    hideStatusAlert();
+    statusButton(status).setAttribute('data-active-action', '');
+    setPending(true, `Moving “${book.title}” to ${label}…`);
+    let saved;
+    try {
+      // Untouched fields are sent exactly as last committed.
+      saved = await source.update(book.id, { title: book.title, author: book.author, status, notes: book.notes });
+    } catch (err) {
+      const error = toFolioError(err);
+      if (error.kind === 'not_found') {
+        await refresh();
+        setPending(false);
+        sheet.missing = true;
+        lockMissing();
+        const close = el('button', { type: 'button', class: 'button button--secondary', text: 'Close' });
+        close.addEventListener('click', () => closeSheet());
+        showStatusAlert({
+          title: `“${book.title}” is no longer in your library`,
+          text: 'It may have been deleted in another window, so nothing was changed. Close this page to return to your books.',
+          actions: [close],
+        }).focus();
+        return;
+      }
+      setPending(false);
+      const again = el('button', { type: 'button', class: 'button button--secondary', text: `Try “${label}” again` });
+      again.addEventListener('click', () => {
+        if (sheet.pending) announcePending();
+        else changeStatus(status);
+      });
+      showStatusAlert({ title: 'Couldn’t change the status', text: STATUS_COPY[error.kind] || STATUS_COPY.server, actions: [again] }).focus();
+      return;
+    }
+    await refresh();
+    setPending(false);
+    sheet.book = saved;
+    for (const option of dialog.querySelectorAll('.status-switch__option')) {
+      option.setAttribute('aria-pressed', String(option.dataset.status === saved.status));
+    }
+    statusButton(saved.status)?.focus();
+    toast(`“${saved.title}” is now marked ${STATUS_LABELS[saved.status]}.`);
   }
 
   function showConfirm(book, footer, errorText = '') {
@@ -1153,7 +1312,14 @@ export function createLibraryView(root, source, { toastDuration = 4200 } = {}) {
     openCreate: () => openCreate({ kind: 'add' }),
     /** Testing/inspection hook: current state snapshot. */
     get snapshot() {
-      return { books: state.books.slice(), query: state.query, status: state.status, sheet: sheet.mode, pending: sheet.pending };
+      return {
+        books: state.books.slice(),
+        query: state.query,
+        status: state.status,
+        sheet: sheet.mode,
+        bookId: sheet.book ? sheet.book.id : null,
+        pending: sheet.pending,
+      };
     },
   };
 }
