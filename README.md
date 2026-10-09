@@ -6,7 +6,7 @@ A personal reading library with eight original fictional books, search, reading-
 python3 server.py
 ```
 
-Open http://127.0.0.1:8000. Add a book, select a cover/title to view it, or use the sheet to edit and delete. Close keeps unsaved drafts for the current page session; Cancel discards them. Notes are literal text. Seeds are inserted once; edits and even an emptied collection survive restarts.
+Open http://127.0.0.1:8000. Add a book, select a cover/title to view it, change its status directly, or use the sheet to edit and delete. The Reading filter presents books with their notes; search and filters announce current results politely. Status changes retain the committed status until success and offer a retry after failure. Close keeps unsaved drafts for the current page session; Cancel discards them. Notes are literal text. Seeds are inserted once; edits and even an emptied collection survive restarts.
 
 Data defaults to `~/.local/share/folio/library.sqlite3` (or `$XDG_DATA_HOME/folio`). Override it with `FOLIO_DATA_DIR` pointing to persistent storage outside the checkout. Runtime databases must stay out of Git. See [API documentation](docs/backend.md) and the [component contract](docs/design/FOUNDATION.md).
 
@@ -24,4 +24,4 @@ The live service restart was checked with an edited record: all stored records w
 python3 -m unittest discover -s tests -v
 ```
 
-API tests cover validation, atomic CRUD, literal Unicode search/notes, missing records, parser errors, one-time seeds and process-restart persistence. Integration Builder also exercised real browser CRUD/search/filter, stale-record recovery, injected HTTP/network failures, draft/list retention, delayed duplicate-submit prevention and focus after controls unlock. Independent Review, integrated Verifier evidence and final Designer acceptance remain separate workflow gates.
+API tests cover validation, atomic CRUD, literal Unicode search/notes, missing records, parser errors, one-time seeds and process-restart persistence. Excessively nested payloads must receive a structured safe 400 or 422 rejection without mutation, accommodating runtime parser differences; the suite was checked on Python 3.13 and 3.14. Integration Builder also exercised real browser CRUD/search/filter, stale-record recovery, injected HTTP/network failures, draft/list retention, delayed duplicate-submit prevention, focus after controls unlock, direct status changes and stale-response announcement suppression. Independent Review, integrated Verifier evidence and final Designer acceptance remain separate workflow gates.
