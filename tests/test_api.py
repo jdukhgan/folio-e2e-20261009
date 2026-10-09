@@ -132,6 +132,24 @@ class APITest(unittest.TestCase):
         self.assertEqual(sorted(statuses), [204, 404])
         self.assertEqual(self.request('PUT', '/api/books/1', self.book())[0], 404)
 
+    def test_deeply_nested_json_is_rejected_without_mutation(self):
+        raw = b'{"notes":' + b'[' * 30000 + b'0' + b']' * 30000 + b'}'
+        self.assertEqual(len(raw), 60011)
+        before = self.request()[1]
+        for method, path in [('POST', '/api/books'), ('PUT', '/api/books/1')]:
+            with self.subTest(method=method):
+                status, result = self.request(method, path, raw=raw)
+                self.assertEqual(status, 400)
+                self.assertEqual(result, {'error': {
+                    'code': 'invalid_json',
+                    'message': 'The request could not be read. Send valid JSON and try again.'}})
+                status, books = self.request()
+                self.assertEqual(status, 200)
+                self.assertEqual(books, before)
+                status, created = self.request('POST', body=self.book())
+                self.assertEqual(status, 201)
+                self.assertEqual(self.request('DELETE', f"/api/books/{created['book']['id']}")[0], 204)
+
     def test_structured_errors_and_safe_storage_failure(self):
         for raw in (b'{', b'\xff', b'{"title":NaN}', b'x' * 65537):
             status, error = self.request('POST', raw=raw)

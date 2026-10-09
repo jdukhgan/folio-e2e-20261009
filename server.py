@@ -142,7 +142,7 @@ class FolioHandler(SimpleHTTPRequestHandler):
             if method in ('POST', 'PUT'):
                 try:
                     payload = self.read_payload()
-                except (ValueError, UnicodeError):
+                except (ValueError, UnicodeError, RecursionError):
                     self.error(400, 'invalid_json', 'The request could not be read. Send valid JSON and try again.')
                     return
                 payload, fields = validate(payload)

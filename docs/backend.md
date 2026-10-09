@@ -20,7 +20,7 @@ Book fields: positive integer `id`, strings `title`, `author`, `status`, `notes`
 - `PUT /api/books/:id` replaces all four fields → 200 `{book:...}`.
 - `DELETE /api/books/:id` → 204, no body.
 
-Failures return `{error:{code,message,fields?}}`: malformed JSON 400 `invalid_json`, invalid fields 422 `validation_error`, missing/deleted records 404 `not_found`, unsupported actions 405 `method_not_allowed`, storage failures 500 `internal_error`. The 500 response contains actionable safe text; details remain in service logs. Bodies are bounded to 64 KiB. Failed validation never partially updates a record; PUT never recreates a deleted record. Successful mutation responses follow transaction commit.
+Failures return `{error:{code,message,fields?}}`: malformed JSON 400 `invalid_json`, invalid fields 422 `validation_error`, missing/deleted records 404 `not_found`, unsupported actions 405 `method_not_allowed`, storage failures 500 `internal_error`. The 500 response contains actionable safe text; details remain in service logs. Bodies are bounded to 64 KiB; JSON exceeding the parser's nesting capacity also returns 400 `invalid_json` without mutation. Failed validation never partially updates a record; PUT never recreates a deleted record. Successful mutation responses follow transaction commit.
 
 The frontend owns pending-action locking, draft retention, literal DOM text rendering, and keyboard focus recovery. No UI files are owned by this prerequisite.
 
