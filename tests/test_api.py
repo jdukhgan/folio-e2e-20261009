@@ -51,6 +51,14 @@ class APITest(unittest.TestCase):
         return {
             **dict(title='New title', author='New author', status='reading', notes=''), **changes}
 
+    def test_designer_seed_contract(self):
+        books = self.request()[1]['books']
+        self.assertEqual([book['id'] for book in books], list(range(1, 9)))
+        self.assertEqual([tuple(book[key] for key in ('title', 'author', 'status', 'notes')) for book in books], server.SEEDS)
+        self.assertEqual(books[0]['title'], 'The Salt Archive')
+        self.assertEqual(books[1]['author'], 'Tomás Brandão')
+        self.assertIn('\nPage 112:', books[3]['notes'])
+
     def test_crud_literal_notes_and_restart(self):
         self.assertEqual(len(self.request()[1]['books']), 8)
         value = self.book(title=' \tAstral 😀\n', author='  Writer  ', notes='\n<script>alert(1)</script>  \t')

@@ -13,15 +13,16 @@ from urllib.parse import parse_qs, urlsplit
 
 STATUSES = ('want_to_read', 'reading', 'finished')
 SEEDS = [
-    ('The Quiet Atlas', 'Mara Venn', 'reading'),
-    ('Forms of Attention', 'Elias Rowan', 'want_to_read'),
-    ('A House for the Tide', 'Iris Bell', 'finished'),
-    ('After the Orchard', 'Theo Vale', 'want_to_read'),
-    ('The Colour of Hours', 'Nina Sol', 'reading'),
-    ('Field Notes on Light', 'Ada Mercer', 'finished'),
-    ('Small Weather', 'Luca Wren', 'want_to_read'),
-    ('Objects We Keep', 'June Arden', 'finished'),
+    ('The Salt Archive', 'Ines Varga', 'reading', "Halfway through. The chapter on the harbour master's ledgers — every tide written down for sixty years — is the best thing I've read this year."),
+    ('Small Hours in Lisbon', 'Tomás Brandão', 'finished', 'Read on the night train. Slight, but the last page stayed with me for days.'),
+    ('A Grammar of Weather', 'Hollis Okafor', 'want_to_read', ''),
+    ('Paper Architecture', 'Mireille Castan', 'reading', 'Essays on buildings that were only ever drawn.\nPage 112: the competition entry for a library with no walls.'),
+    ('The Orchard at Ninth Street', 'June Halvorsen', 'finished', 'A family novel told in four seasons. Lent to Dana — ask for it back.'),
+    ('Notes Toward a Blue Room', 'Saskia Lindqvist', 'want_to_read', 'Recommended by the bookseller on Calle Mayor.'),
+    ('Every Line a Border', 'Rafael Ndiaye', 'finished', 'Maps, passports and the people who draw both. Uneven, but the cartography chapters are superb.'),
+    ('What the Kiln Keeps', 'Aiko Marrow', 'want_to_read', ''),
 ]
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -56,7 +57,7 @@ def initialize(database):
             notes TEXT NOT NULL)''')
         if not db.execute("SELECT 1 FROM metadata WHERE key='seeded'").fetchone():
             db.executemany('INSERT INTO books(title,author,status,notes) VALUES(?,?,?,?)',
-                           [(title, author, status, '') for title, author, status in SEEDS])
+                           SEEDS)
             db.execute("INSERT INTO metadata VALUES('seeded','1')")
 
 
